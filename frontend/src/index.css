@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-gradient-to-b from-gray-900 to-black text-white font-sans;
+}
+
+/* src/index.css - minimal fallback styling if not using Tailwind */
+body { margin: 0; font-family: Inter, system-ui, Arial; background:#0f172a; color: #fff; }
+button { cursor: pointer; }
+/* === NFT Skeleton shimmer animation === */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(75, 85, 99, 0.2) 25%,
+    rgba(107, 114, 128, 0.4) 50%,
+    rgba(75, 85, 99, 0.2) 75%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
