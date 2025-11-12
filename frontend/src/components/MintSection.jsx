@@ -15,76 +15,58 @@ export default function MintSection({ account }) {
   const [mintedNFT, setMintedNFT] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // 📤 Upload image to Pinata
-  async function uploadToPinata() {
+  // Upload image via your backend (which pins to Pinata)
+  async function uploadToBackend() {
     if (!file) return null;
-    const url = "https://api.pinata.cloud/pinning/pinFileToIPFS";
     const formData = new FormData();
     formData.append("file", file);
 
     try {
-      const res = await axios.post(url, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          pinata_api_key: import.meta.env.VITE_PINATA_API_KEY,
-          pinata_secret_api_key: import.meta.env.VITE_PINATA_SECRET_KEY,
-        },
+      const res = await axios.post("https://maganft-dapp.onrender.com/upload", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      return `https://gateway.pinata.cloud/ipfs/${res.data.IpfsHash}`;
+      return res.data.link;
     } catch (err) {
-      console.error("❌ Pinata upload failed:", err);
-      setStatus("❌ Upload failed! Check your Pinata keys.");
+      console.error("❌ Backend upload failed:", err);
+      setStatus("❌ Upload failed! Check backend connection.");
       return null;
     }
   }
 
-  // 🪙 Mint NFT
+  // Mint NFT function
   async function mintNFT() {
     try {
-      if (!account) {
-        alert("Please connect your wallet first.");
-        return;
-      }
-      if (!file) {
-        alert("Please select an image file to mint!");
-        return;
-      }
-      if (!title.trim()) {
-        alert("Please enter a title for your NFT.");
-        return;
-      }
+      if (!account) return alert("Please connect your wallet first.");
+      if (!file) return alert("Please select an image file to mint!");
+      if (!title.trim()) return alert("Please enter a title for your NFT.");
 
       setLoading(true);
-      setStatus("⏳ Uploading image to IPFS...");
-      const imageURI = await uploadToPinata();
+      setStatus("⏳ Uploading image to IPFS through backend...");
+      const imageURI = await uploadToBackend();
       if (!imageURI) {
         setLoading(false);
         return;
       }
 
-      // 🧾 Upload metadata
-      setStatus("📤 Uploading metadata...");
+      setStatus("📤 Uploading metadata to IPFS...");
       const metadata = {
         name: title.trim(),
         description: description.trim() || "Minted via MagaNFT DApp",
         image: imageURI,
       };
 
-      const metadataRes = await axios.post(
-        "https://api.pinata.cloud/pinning/pinJSONToIPFS",
-        metadata,
-        {
-          headers: {
-            pinata_api_key: import.meta.env.VITE_PINATA_API_KEY,
-            pinata_secret_api_key: import.meta.env.VITE_PINATA_SECRET_KEY,
-          },
-        }
-      );
+      // Upload metadata JSON to Pinata via backend (optional future route)
+      const metadataRes = await axios.post("https://api.pinata.cloud/pinning/pinJSONToIPFS", metadata, {
+        headers: {
+          pinata_api_key: import.meta.env.VITE_PINATA_API_KEY,
+          pinata_secret_api_key: import.meta.env.VITE_PINATA_SECRET_KEY,
+        },
+      });
 
       const tokenURI = `https://gateway.pinata.cloud/ipfs/${metadataRes.data.IpfsHash}`;
       console.log("🆕 Token URI:", tokenURI);
 
-      // 🔗 Contract interaction
+      // Interact with the deployed smart contract
       setStatus("🚀 Minting your NFT...");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
@@ -93,11 +75,10 @@ export default function MintSection({ account }) {
       const tx = await contract.mintNFT(account, tokenURI);
       await tx.wait();
 
-      // ✅ Success
       setStatus("✅ NFT successfully minted!");
       setMintedNFT({ title, image: imageURI, metadata: tokenURI });
 
-      // 🧹 Reset form after successful mint
+      // Reset form
       setFile(null);
       setTitle("");
       setDescription("");
@@ -113,19 +94,13 @@ export default function MintSection({ account }) {
   function handleFileChange(e) {
     const selected = e.target.files[0];
     setFile(selected);
-    if (selected) {
-      const preview = URL.createObjectURL(selected);
-      setPreviewUrl(preview);
-    } else {
-      setPreviewUrl(null);
-    }
+    setPreviewUrl(selected ? URL.createObjectURL(selected) : null);
   }
 
   return (
     <div className="p-6 bg-gray-800 rounded-2xl shadow-lg border border-gray-700">
       <h2 className="text-xl font-semibold mb-4 text-gray-100">Mint New NFT</h2>
 
-      {/* Image Preview / Shimmer */}
       <div className="relative rounded-xl overflow-hidden mb-4 h-72 w-full bg-gray-900 border border-gray-700 shadow-inner">
         {previewUrl ? (
           <img
@@ -138,7 +113,6 @@ export default function MintSection({ account }) {
         )}
       </div>
 
-      {/* File Input */}
       <input
         type="file"
         accept="image/png, image/jpeg"
@@ -147,7 +121,6 @@ export default function MintSection({ account }) {
         className="mb-4 block w-full bg-gray-700 rounded-lg p-2 text-sm text-gray-200 cursor-pointer disabled:opacity-50"
       />
 
-      {/* Title Input */}
       <input
         type="text"
         placeholder="NFT Title (e.g. Sunrise #1)"
@@ -157,7 +130,6 @@ export default function MintSection({ account }) {
         className="mb-3 block w-full bg-gray-700 rounded-lg p-2 text-sm text-gray-200 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none disabled:opacity-50"
       />
 
-      {/* Description Input */}
       <textarea
         placeholder="Description (optional)"
         value={description}
@@ -167,7 +139,6 @@ export default function MintSection({ account }) {
         className="mb-4 block w-full bg-gray-700 rounded-lg p-2 text-sm text-gray-200 placeholder-gray-400 focus:ring-2 focus:ring-green-500 outline-none disabled:opacity-50"
       />
 
-      {/* Mint Button */}
       <button
         onClick={mintNFT}
         disabled={loading}
@@ -180,7 +151,6 @@ export default function MintSection({ account }) {
         {loading ? "Minting..." : "Mint NFT"}
       </button>
 
-      {/* Status Message */}
       {status && (
         <div
           className={`mt-4 text-sm text-gray-200 bg-gray-700 p-3 rounded-lg border border-gray-600 transition-all duration-300 ${
@@ -195,7 +165,6 @@ export default function MintSection({ account }) {
         </div>
       )}
 
-      {/* Minted NFT Confirmation */}
       {mintedNFT && (
         <div className="mt-4 p-4 bg-gray-700 rounded-xl border border-green-600 shadow-inner animate-fade-in">
           <h3 className="text-sm font-semibold mb-3 text-green-400 flex items-center gap-2">
@@ -208,27 +177,16 @@ export default function MintSection({ account }) {
           />
           <div className="space-y-1">
             <p className="text-gray-200 font-medium">{mintedNFT.title}</p>
-            <a
-              href={mintedNFT.image}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-400 hover:underline block"
-            >
+            <a href={mintedNFT.image} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline block">
               🖼 View Image on IPFS
             </a>
-            <a
-              href={mintedNFT.metadata}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-400 hover:underline block"
-            >
+            <a href={mintedNFT.metadata} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:underline block">
               📄 View Metadata on IPFS
             </a>
           </div>
         </div>
       )}
 
-      {/* Shimmer effect */}
       <style>{`
         .shimmer {
           background: linear-gradient(110deg, #2a2a2a 8%, #3d3d3d 18%, #2a2a2a 33%);

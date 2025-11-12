@@ -2,19 +2,18 @@ const hre = require("hardhat");
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
-  console.log("Deploying with:", deployer.address);
+
+  console.log("Deploying contract with account:", deployer.address);
 
   const MagaNFT = await hre.ethers.getContractFactory("MagaNFT");
-  const maga = await MagaNFT.deploy(deployer.address);
+  const nft = await MagaNFT.deploy(deployer.address); // pass your wallet address as constructor argument
 
-  await maga.waitForDeployment();
+  await nft.waitForDeployment();
 
-  console.log("✅ Contract deployed to:", await maga.getAddress());
+  console.log("Contract deployed to:", await nft.getAddress());
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error("❌ Deployment failed:", error);
-    process.exit(1);
-  });
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

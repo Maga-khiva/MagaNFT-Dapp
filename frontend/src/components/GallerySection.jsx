@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import contractABI from "../abi/MagaNFT.json";
 
 // Your deployed contract address and gateway
-const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const CONTRACT_ADDRESS = " 0x09BbF5B25095B83FAa1E86C415b4CC8a7027aa8f";
 const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
 
 function ipfsToHttp(uri) {
