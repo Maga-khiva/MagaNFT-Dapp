@@ -1,31 +1,64 @@
+/* Tailwind directives — the comment below silences VS Code's built-in CSS validator */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────────────────────── */
+/* MAGA 2025 — Trump Energy (Ultra Clean & Valid CSS)            */
+/* ─────────────────────────────────────────────────────────────── */
+
 body {
-  @apply bg-gradient-to-b from-gray-900 to-black text-white font-sans;
+  margin: 0;
+  font-family: 'Montserrat', 'Inter', system-ui, sans-serif;
+  background: linear-gradient(135deg, #0a001f, #1a0033, #2d001a);
+  background-attachment: fixed;
+  color: #fff;
+  min-height: 100vh;
 }
 
-/* src/index.css - minimal fallback styling if not using Tailwind */
-body { margin: 0; font-family: Inter, system-ui, Arial; background:#0f172a; color: #fff; }
-button { cursor: pointer; }
-/* === NFT Skeleton shimmer animation === */
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-20px); }
 }
 
-.animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(75, 85, 99, 0.2) 25%,
-    rgba(107, 114, 128, 0.4) 50%,
-    rgba(75, 85, 99, 0.2) 75%
-  );
-  background-size: 1000px 100%;
-  animation: shimmer 2s infinite linear;
+/* GLASS CARD — Correct vendor prefix order (fixes webhint warning) */
+.glass {
+  background: rgba(20, 10, 40, 0.4);
+  /* Standard property FIRST */
+  backdrop-filter: blur(20px);
+  /* Then the webkit prefix */
+  -webkit-backdrop-filter: blur(20px);
+  
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.6),
+    0 0 60px rgba(255, 0, 255, 0.15);
+  border-radius: 2rem;
+  overflow: hidden;
+}
+
+/* Glowing text effect */
+.glow-text {
+  text-shadow: 
+    0 0 20px rgba(255, 215, 0, 0.8), 
+    0 0 40px rgba(255, 0, 0, 0.6);
+}
+
+/* MAGA gradient text — works in all modern browsers */
+.maga-gradient {
+  background: linear-gradient(90deg, #ff0000, #ff6b00, #ffd700, #ff0000);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 900;
+}
+
+/* Optional: Smooth scrolling & better focus outlines */
+html {
+  scroll-behavior: smooth;
+}
+
+:focus-visible {
+  outline: 2px solid #ffd700;
+  outline-offset: 4px;
 }

@@ -1,5 +1,6 @@
 {
-  "name": "frontend",
+ "name": "maganft-dapp",
+  "description": "A decentralized NFT gallery and minting platform by Maga.",
   "private": true,
   "version": "0.0.0",
   "type": "module",

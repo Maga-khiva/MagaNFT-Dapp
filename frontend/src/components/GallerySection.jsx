@@ -1,9 +1,10 @@
+// src/components/GallerySection.jsx
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ethers } from "ethers";
-import contractABI from "../abi/MagaNFT.json";
+import { useWeb3 } from "../hooks/useWeb3";
+import NFTCard from "./NFTCard"; 
 
 // Your deployed contract address and gateway
-const CONTRACT_ADDRESS = " 0x09BbF5B25095B83FAa1E86C415b4CC8a7027aa8f";
+const CONTRACT_ADDRESS = "0x09BbF5B25095B83FAa1E86C415b4CC8a7027aa8f";
 const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
 
 function ipfsToHttp(uri) {
@@ -13,7 +14,7 @@ function ipfsToHttp(uri) {
   return uri;
 }
 
-// Modal for viewing NFT details
+// Modal for viewing NFT details (kept as is)
 function NFTModal({ open, onClose, nft }) {
   if (!open || !nft) return null;
   return (
@@ -58,7 +59,7 @@ function NFTModal({ open, onClose, nft }) {
                 href={ipfsToHttp(nft.uri)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 inline-block text-center px-0 py-2 bg-green-700 text-sm rounded-lg hover:bg-green-800 text-white duration-150"
+                className="flex-1 inline-block text-center px-3 py-3 bg-green-700 text-sm rounded-lg hover:bg-green-800 text-white duration-150"
               >
                 Metadata
               </a>
@@ -67,7 +68,7 @@ function NFTModal({ open, onClose, nft }) {
               href={`https://etherscan.io/token/${CONTRACT_ADDRESS}?a=${nft.tokenId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 inline-block text-center px-0 py-2 bg-gray-700 text-sm rounded-lg hover:bg-gray-800 text-white duration-150"
+              className="flex-1 inline-block text-center px-3 py-3 bg-gray-700 text-sm rounded-lg hover:bg-gray-800 text-white duration-150"
             >
               Etherscan
             </a>
@@ -78,39 +79,24 @@ function NFTModal({ open, onClose, nft }) {
   );
 }
 
-export default function GallerySection({ account }) {
+export default function GallerySection() {
+  const { readOnlyContract, account } = useWeb3();
+
   const [allNFTs, setAllNFTs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [showMine, setShowMine] = useState(false);
-  const [contract, setContract] = useState(null);
   const [selectedNFT, setSelectedNFT] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // Setup ethers.Contract (read-only)
-  useEffect(() => {
-    async function setup() {
-      try {
-        if (!window.ethereum) throw new Error("Please install MetaMask.");
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, contractABI.abi, provider);
-        setContract(contract);
-      } catch (e) {
-        console.error(e);
-        setError("Failed to connect to contract. Check web3 wallet.");
-      }
-    }
-    setup();
-  }, []);
-
   // Load all NFTs (metadata + owners)
   const loadAllNFTs = useCallback(async () => {
-    if (!contract) return;
+    if (!readOnlyContract) return;
     setLoading(true);
     setError("");
     try {
-      const allTokens = await contract.getAllTokens();
+      const allTokens = await readOnlyContract.getAllTokens();
       if (!Array.isArray(allTokens) || !allTokens.length) {
         setAllNFTs([]);
         setLoading(false);
@@ -127,7 +113,7 @@ export default function GallerySection({ account }) {
           }
           let owner = "";
           try {
-            owner = await contract.ownerOf(tokenId);
+            owner = await readOnlyContract.ownerOf(tokenId);
           } catch {
             owner = "";
           }
@@ -150,34 +136,45 @@ export default function GallerySection({ account }) {
     } finally {
       setLoading(false);
     }
-  }, [contract]);
+  }, [readOnlyContract]);
 
+  // Initial load effect
   useEffect(() => {
-    if (contract) loadAllNFTs();
-  }, [contract, account, loadAllNFTs]);
+    if (readOnlyContract) loadAllNFTs();
+  }, [readOnlyContract, loadAllNFTs]);
+
+  // Event Listener (Ensures data is refreshed when new NFTs are minted)
+  // Auto-refresh every 30 seconds when wallet is connected (optional but nice)
+useEffect(() => {
+  if (!readOnlyContract) return;
+
+  const interval = setInterval(() => {
+    loadAllNFTs();
+  }, 30_000); // 30 seconds
+
+  return () => clearInterval(interval);
+}, [readOnlyContract, loadAllNFTs]);
 
   const nftsToShow = useMemo(() => {
     let nfts = allNFTs;
+
+    // 💡 FIX 1: Sort by Token ID Descending (Last added first/Newest first)
+    // We use a spread operator ([...nfts]) to create a copy before sorting, 
+    // which is the standard practice for state immutability in React.
+    nfts = [...nfts].sort((a, b) => b.tokenId - a.tokenId); 
+
     if (showMine && account) nfts = nfts.filter((nft) => nft.owner === account.toLowerCase());
     if (search) {
       const term = search.toLowerCase();
       nfts = nfts.filter(
         (nft) =>
           nft.metadata.name.toLowerCase().includes(term) ||
-          nft.metadata.description.toLowerCase().includes(term)
+          nft.metadata.description.toLowerCase().includes(term) ||
+          nft.owner.toLowerCase().includes(term)
       );
     }
     return nfts;
   }, [allNFTs, showMine, account, search]);
-
-  useEffect(() => {
-    if (!contract) return;
-    const update = () => loadAllNFTs();
-    contract.on("Minted", update);
-    return () => {
-      contract.off("Minted", update);
-    };
-  }, [contract, loadAllNFTs]);
 
   const onToggleMine = () => {
     if (!account) {
@@ -191,19 +188,29 @@ export default function GallerySection({ account }) {
     setSelectedNFT(nft);
     setModalOpen(true);
   };
-
+  
   return (
-    <section className="p-8 bg-[#191e24] rounded-2xl shadow-xl min-h-screen">
+    <section className="p-8 bg-[#13171c] rounded-2xl shadow-xl min-h-screen">
       <NFTModal open={modalOpen} nft={selectedNFT} onClose={() => setModalOpen(false)} />
-      {/* Header controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6">
-        <h2 className="text-2xl font-extrabold text-white flex items-center gap-2">
-          <span role="img" aria-label="gallery">🖼️</span> Maga NFT Gallery
+      
+      {/* 💡 FIX 2: Header controls and Prettier Gallery Title */}
+      {/* The non-functional Mint CTA has been removed entirely */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-6 pt-4">
+        <h2 
+          className="text-4xl font-extrabold text-blue-400 tracking-wider text-shadow-lg"
+          style={{
+             // Using a system serif font with a fallback for an elevated, classical look
+             fontFamily: "Playfair Display, Georgia, serif", 
+             // Subtle text shadow for depth and pop
+             textShadow: '0 0 5px rgba(66, 153, 225, 0.5), 0 0 10px rgba(66, 153, 225, 0.3)' 
+          }}
+        >
+          MAGA NFT GALLERY
         </h2>
         <div className="flex gap-3 items-center flex-wrap">
           <input
             type="text"
-            placeholder="Search NFTs..."
+            placeholder="Search NFTs or owner address..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="px-3 py-2 rounded-lg bg-[#23272f] text-sm text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -215,14 +222,14 @@ export default function GallerySection({ account }) {
             disabled={loading}
             type="button"
           >
-            <span className="material-icons mr-1" style={{ fontSize: 18 }}></span>
+            <span className="material-icons mr-1" style={{ fontSize: 18 }}>↻</span>
             Refresh
           </button>
           <button
             onClick={onToggleMine}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition flex items-center
               ${showMine ? "bg-purple-600 hover:bg-purple-700 text-white" : "bg-gray-700 hover:bg-gray-800 text-white"}`}
-            disabled={loading}
+            disabled={loading || !account}
             type="button"
           >
             {showMine ? "🌍 Show All NFTs" : "👛 Show My NFTs"}
@@ -243,93 +250,38 @@ export default function GallerySection({ account }) {
         </div>
       )}
 
+      {/* SKELETON LOADER */}
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-7 mt-6">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="h-[440px] rounded-2xl bg-[#23272f] animate-pulse" />
+            <div key={i} className="h-[440px] rounded-2xl bg-[#23272f] animate-pulse shadow-xl" />
           ))}
         </div>
       )}
 
+      {/* EMPTY STATE */}
       {!loading && nftsToShow.length === 0 && (
-        <p className="text-gray-400 text-center mt-10 text-lg">
+        <p className="text-gray-400 text-center mt-10 text-lg p-10 bg-[#1c212a] rounded-xl border border-gray-700/50">
           {showMine
             ? account
               ? "You haven’t minted any NFTs yet."
               : "Connect your wallet to see your NFTs."
-            : "No NFTs found or minted yet."}
+            : "No NFTs found or minted yet. Check the Mint Section to create one!"}
         </p>
       )}
 
+      {/* NFT GALLERY */}
       {!loading && nftsToShow.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-7 mt-6">
           {nftsToShow.map(nft => (
-            <div
-              key={nft.tokenId}
-              tabIndex={0}
-              onClick={() => onCardClick(nft)}
-              onKeyDown={e => e.key === "Enter" && onCardClick(nft)}
-              className="bg-[#23272f] rounded-2xl shadow-md flex flex-col cursor-pointer
-                         transition-transform hover:scale-[1.03] hover:shadow-xl outline-none focus:ring-2 focus:ring-blue-500
-                         h-[440px]"
-              title="Click to view details"
-              style={{ minWidth: 0 }}
-            >
-              <div className="w-full h-64 rounded-t-2xl bg-gray-700 overflow-hidden flex items-center justify-center">
-                <img
-                  src={nft.metadata.image || "https://via.placeholder.com/300?text=No+Image"}
-                  alt={nft.metadata.name}
-                  loading="lazy"
-                  className="object-cover w-full h-full"
-                  onError={e => { e.target.onerror = null; e.target.src = "https://via.placeholder.com/300?text=No+Image"; }}
-                />
-              </div>
-              <div className="flex-1 flex flex-col px-4 py-3">
-                <h3 className="text-lg font-bold truncate text-white">{nft.metadata.name}</h3>
-                <p className="text-xs text-gray-400 leading-tight mb-1">
-                  Minted via MagaNFT DApp
-                </p>
-                <p className="text-xs text-blue-300 mb-1">Token ID: {nft.tokenId}</p>
-                <p className="text-xs text-gray-500 break-all mb-2">
-                  {nft.owner}
-                </p>
-                <div className="flex gap-2 mt-auto pt-1 w-full">
-                  <a
-                    href={nft.metadata.image || "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 px-0 py-2 text-center rounded-lg text-sm bg-blue-700 hover:bg-blue-800 text-white transition font-semibold"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    View
-                    NFT
-                  </a>
-                  <a
-                    href={nft.uri ? ipfsToHttp(nft.uri) : "#"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 px-0 py-2 text-center rounded-lg text-sm bg-green-700 hover:bg-green-800 text-white transition font-semibold"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    Meta
-                    data
-                  </a>
-                  <a
-                    href={`https://etherscan.io/token/${CONTRACT_ADDRESS}?a=${nft.tokenId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 px-0 py-2 text-center rounded-lg text-sm bg-gray-700 hover:bg-gray-800 text-white transition font-semibold"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    Ether
-                    scan
-                  </a>
-                </div>
-              </div>
-            </div>
+            <NFTCard 
+                key={nft.tokenId} 
+                nft={nft} 
+                onCardClick={onCardClick} 
+            />
           ))}
         </div>
       )}
     </section>
   );
-}
+} 
