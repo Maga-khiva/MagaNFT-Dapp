@@ -12,7 +12,10 @@ function ipfsToHttp(uri) {
 
 export default function NFTCard({ nft, onCardClick }) {
   const { tokenId, uri, owner, metadata } = nft;
-  const imageUrl = metadata.image || "https://via.placeholder.com/300?text=No+Image";
+  // Fixed: Convert ipfs:// to https gateway for image display
+  const imageUrl = metadata.image
+    ? ipfsToHttp(metadata.image)
+    : "https://via.placeholder.com/300?text=No+Image";
   const formattedOwner = owner.substring(0, 6) + "..." + owner.substring(owner.length - 4);
 
   return (
@@ -53,7 +56,7 @@ export default function NFTCard({ nft, onCardClick }) {
             href={`https://etherscan.io/token/${CONTRACT_ADDRESS}?a=${tokenId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 px-0 py-2 text-center rounded-lg text-sm bg-gray-700 hover:bg-gray-600 text-white transition font-semibold"
+            className="flex-1 px-2 py-2 text-center rounded-lg text-sm bg-gray-700 hover:bg-gray-600 text-white transition font-semibold"
             onClick={e => e.stopPropagation()}
           >
             Etherscan
@@ -62,7 +65,7 @@ export default function NFTCard({ nft, onCardClick }) {
             href={uri ? ipfsToHttp(uri) : "#"}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 px-0 py-2 text-center rounded-lg text-sm bg-green-700 hover:bg-green-800 text-white transition font-semibold"
+            className="flex-1 px-2 py-2 text-center rounded-lg text-sm bg-green-700 hover:bg-green-800 text-white transition font-semibold"
             onClick={e => e.stopPropagation()}
           >
             Metadata

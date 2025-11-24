@@ -30,7 +30,13 @@ function NFTModal({ open, onClose, nft }) {
         <div className="flex flex-col items-center">
           <div className="w-full flex justify-center bg-[#23272f] rounded-lg p-2 mb-4">
             <img
-              src={nft.metadata.image || "https://via.placeholder.com/400?text=No+Image"}
+              src={
+               nft.metadata.image
+                 ? nft.metadata.image.startsWith("ipfs://")
+                   ? nft.metadata.image.replace("ipfs://", "https://gateway.pinata.cloud/ipfs/")
+                   : nft.metadata.image
+                 : "https://via.placeholder.com/400?text=No+Image"
+  }
               alt={nft.metadata.name}
               className="max-h-72 rounded-lg"
               style={{ objectFit: "contain" }}
@@ -59,7 +65,7 @@ function NFTModal({ open, onClose, nft }) {
                 href={ipfsToHttp(nft.uri)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-1 inline-block text-center px-3 py-3 bg-green-700 text-sm rounded-lg hover:bg-green-800 text-white duration-150"
+                className="flex-1 inline-block text-center px-0 py-2 bg-green-700 text-sm rounded-lg hover:bg-green-800 text-white duration-150"
               >
                 Metadata
               </a>
@@ -68,7 +74,7 @@ function NFTModal({ open, onClose, nft }) {
               href={`https://etherscan.io/token/${CONTRACT_ADDRESS}?a=${nft.tokenId}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 inline-block text-center px-3 py-3 bg-gray-700 text-sm rounded-lg hover:bg-gray-800 text-white duration-150"
+              className="flex-1 inline-block text-center px-0 py-2 bg-gray-700 text-sm rounded-lg hover:bg-gray-800 text-white duration-150"
             >
               Etherscan
             </a>
